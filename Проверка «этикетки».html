@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Проверка «этикетки»</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE work tool for support staff checking label documents in bulk
+   IDEA an inspection sheet: choose the unit, see only its checkpoints, mark pass or fail
+   PICTURE the live checklist itself, with a running tally and a reply to the client built from the fails
+   COLOUR white, ink, cobalt #1240e0 strip and marks, pale #eef2ff zones, red #d92d20 for errors
+   TYPE Space Grotesk 600 + Inter
+   LAYOUT strip; selector panel; checklist left, sticky tally and message right; phone stacks with a slim bottom bar */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#0a0d18);--ink:light-dark(#111318,#e8ebf5);--mut:light-dark(#5a6070,#9aa2b8);--line:light-dark(#d9deea,#262c42);--zone:light-dark(#eef2ff,#121833);--co:light-dark(#1240e0,#7d97ff);--err:light-dark(#d92d20,#ff6b5e);--errz:light-dark(#fdeceb,#2a1515)}
+:root[data-theme=light]{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html{scroll-padding-top:16px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:"Space Grotesk",Inter,sans-serif;letter-spacing:-.02em;margin:0;font-weight:600}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,textarea:focus-visible{outline:3px solid var(--co);outline-offset:2px}
+.strip{background:#1240e0;color:#fff;padding:22px max(5vw,16px) 20px}
+.strip .in{max-width:1240px;margin:0 auto}
+.strip h1{font-size:clamp(28px,4vw,40px);line-height:1.05}
+.strip p{margin:8px 0 0;max-width:68ch;opacity:.92}
+.wrap{max-width:1240px;margin:0 auto;padding:20px max(5vw,16px) 40px}
+.pick{background:var(--zone);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px}
+.row{display:grid;grid-template-columns:190px minmax(0,1fr);gap:12px;align-items:center}
+.row>span{font-weight:600;font-size:15px}
+.row[hidden]{display:none}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{min-height:44px;padding:0 16px;border:1px solid var(--line);background:var(--bg);border-radius:8px;font-size:15px}
+.seg button[aria-pressed=true]{background:var(--co);border-color:var(--co);color:#fff}
+.seg.big button{min-height:52px;padding:0 22px;font:600 18px "Space Grotesk",Inter,sans-serif}
+.note{font-size:14px;color:var(--mut);margin:0;grid-column:2}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:24px;margin-top:24px;align-items:start}
+aside{position:sticky;top:16px;display:grid;gap:16px}
+.doc{border:1px solid var(--line);border-radius:10px;margin-bottom:16px;overflow:hidden}
+.doc header{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px;padding:12px 16px;background:var(--zone);border-bottom:1px solid var(--line)}
+.doc h2{font-size:20px}
+.doc header p{margin:0;font-size:14px;color:var(--mut);flex-basis:100%}
+.cnt{font-size:14px;color:var(--mut);white-space:nowrap;font-variant-numeric:tabular-nums}
+.cnt.done{color:var(--co);font-weight:600}
+.cnt.bad{color:var(--err);font-weight:600}
+.it{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:12px 16px;border-top:1px solid var(--line)}
+.it:first-child{border-top:0}
+.it .t{font-weight:500}
+.it .h{font-size:14px;color:var(--mut);margin-top:2px}
+.it.ok{box-shadow:inset 4px 0 var(--co)}
+.it.ok .t{color:var(--mut)}
+.it.err{background:var(--errz);box-shadow:inset 4px 0 var(--err)}
+.mk{display:flex;gap:6px;align-self:start}
+.mk button{min-height:44px;min-width:44px;padding:0 12px;border:1px solid var(--line);background:var(--bg);border-radius:8px;font-size:14px;font-weight:500}
+.mk .o[aria-pressed=true]{background:var(--co);border-color:var(--co);color:#fff}
+.mk .e[aria-pressed=true]{background:var(--err);border-color:var(--err);color:#fff}
+.panel{border:1px solid var(--line);border-radius:10px;padding:16px;background:var(--bg)}
+.tally{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.tally div{font-size:13px;color:var(--mut)}
+.tally b{display:block;font:600 30px/1.1 "Space Grotesk",Inter,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
+.tally .e b{color:var(--err)}
+.bar{height:8px;background:var(--zone);border-radius:4px;overflow:hidden;display:flex}
+.bar span{display:block;height:100%;transition:width .25s}
+.bar .o{background:var(--co)}
+.bar .e{background:var(--err)}
+.verdict{margin:12px 0 0;font-weight:500}
+.verdict.good{color:var(--co)}
+.verdict.bad{color:var(--err)}
+.panel h3{font-size:18px;margin-bottom:8px}
+textarea{width:100%;min-height:240px;font:15px/1.5 Inter,sans-serif;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);resize:vertical}
+.hint{font-size:13px;color:var(--mut);margin:6px 0 0}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.acts button{min-height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--bg);font-size:15px;font-weight:500}
+.acts .pri{background:var(--co);border-color:var(--co);color:#fff}
+.mbar{display:none}
+@media(prefers-reduced-motion:reduce){.bar span{transition:none}}
+@media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}aside{position:static}.mbar{display:flex;position:fixed;left:0;right:0;bottom:0;gap:12px;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--bg);border-top:1px solid var(--line);font-size:15px;z-index:5}.mbar a{color:var(--co);font-weight:600;white-space:nowrap}body{padding-bottom:64px}}
+@media(max-width:600px){.row{grid-template-columns:minmax(0,1fr);gap:6px}.note{grid-column:1}.it{grid-template-columns:minmax(0,1fr)}.seg.big button{flex:1}}
+</style>
+</head>
+<body>
+<div class="strip"><div class="in">
+<h1>Проверка документов на «этикетку»</h1>
+<p>Выберите оператора и данные клиента — останутся только нужные пункты. Отмечайте «Ок» или «Ошибка»: из ошибок само соберётся сообщение клиенту.</p>
+</div></div>
+
+<div class="wrap">
+<section class="pick" aria-label="Параметры заявки">
+<div class="row"><span>Оператор</span><div class="seg big" data-k="op">
+<button data-v="bee">Билайн</button><button data-v="int">Интелерос</button><button data-v="mts">МТС</button>
+</div><p class="note" id="opnote"></p></div>
+<div class="row"><span>Клиент</span><div class="seg" data-k="le"><button data-v="ul">Юрлицо</button><button data-v="ip">ИП</button></div></div>
+<div class="row"><span>Печать</span><div class="seg" data-k="seal"><button data-v="yes">Есть</button><button data-v="no">Нет</button></div></div>
+<div class="row"><span>Товарный знак в «этикетке»</span><div class="seg" data-k="tm"><button data-v="none">Нет</button><button data-v="own">Свой</button><button data-v="lic">Чужой (по договору)</button></div></div>
+<div class="row" id="latrow"><span>ТЗ на латинице</span><div class="seg" data-k="lat"><button data-v="no">Нет</button><button data-v="yes">Да</button></div></div>
+</section>
+
+<div class="grid">
+<main id="list"></main>
+<aside>
+<div class="panel">
+<div class="tally"><div>Проверено<b id="nDone">0</b></div><div>Осталось<b id="nLeft">0</b></div><div class="e">Ошибок<b id="nErr">0</b></div></div>
+<div class="bar"><span class="o" id="bOk"></span><span class="e" id="bErr"></span></div>
+<p class="verdict" id="verdict"></p>
+<div class="acts"><button id="reset">Новая заявка</button></div>
+</div>
+<div class="panel" id="msg">
+<h3>Сообщение клиенту</h3>
+<textarea id="text" placeholder="Отметьте ошибки — сообщение клиенту соберётся здесь. Все замечания уходят одним сообщением."></textarea>
+<p class="hint" id="brk"></p>
+<div class="acts"><button class="pri" id="copy">Скопировать</button></div>
+</div>
+</aside>
+</div>
+</div>
+<div class="mbar"><span id="mtxt"></span><a href="#msg">К сообщению</a></div>
+
+<script>
+{
+const OPS={
+  bee:{n:'Билайн',g:'билайн',note:'Только мобильные номера билайн. Комплект отдельный — номера Интелерос сюда не входят.'},
+  int:{n:'Интелерос',g:'Интелерос',note:'Комплект отдельный — номера билайн сюда не входят.'},
+  mts:{n:'МТС',g:'МТС',note:'Свой шаблон согласия и анкеты. Номера МТС указываются в анкете, а не в согласии.'}
+};
+const DOCS=[
+  ['label','Текст «этикетки»','Первым: он повторяется и в согласии, и в анкете'],
+  ['consent','Согласие','Скан или фото подписанной распечатки'],
+  ['form','Анкета','Файлом, без подписи'],
+  ['verify','Верификация','Документы о самом юрлице или ИП'],
+  ['tm','Товарный знак','Право использовать знак в «этикетке»']
+];
+const st={op:'bee',le:'ul',seal:'yes',tm:'none',lat:'no'};
+const marks={};
+const BL=()=>st.op!=='mts';
+const UL=()=>st.le==='ul';
+const TM=()=>st.tm!=='none';
+const LAT=()=>TM()&&st.lat==='yes';
+const G=()=>OPS[st.op].g;
+const v=x=>typeof x==='function'?x():x;
+
+const C=[
+  {id:'l1',d:'label',t:()=>LAT()?'Одна версия на латинице, в кириллице — прочерк':'Две версии: кириллица и латиница',h:()=>LAT()?'Латинский ТЗ на кириллицу не переводят':'Если ТЗ на латинице — включите переключатель выше',r:()=>LAT()?'Товарный знак на латинице переводить на кириллицу не нужно: оставьте один текст на латинице, а в столбце с кириллицей поставьте прочерк.':'Нужны две версии текста «этикетки»: на кириллице и на латинице. Сейчас есть только [какая].'},
+  {id:'l2',d:'label',t:'Не больше 32 символов с пробелами — у каждой версии',h:'Считайте формулой =ДЛСТР(), не на глаз. Латиница после транслита обычно длиннее',r:'В тексте «[текст]» [N] символов, а можно не больше 32 вместе с пробелами. Возьмите категорию из соседнего столбца файла «Категория — ОКВЭД» — там она короче.'},
+  {id:'l3',d:'label',t:()=>(TM()?'Товарный знак':'Название')+' + категория',h:'Например: «ИП Котиков Р. Ю.: клининг»',r:'В «этикетке» должны быть название компании (или товарный знак) и категория звонка, например: «ИП Котиков Р. Ю.: клининг».'},
+  {id:'l4',d:'label',t:()=>TM()?'Товарный знак написан как в свидетельстве':'Название совпадает с выпиской '+(UL()?'ЕГРЮЛ':'ЕГРИП'),r:()=>TM()?'Товарный знак в «этикетке» должен быть написан так же, как в свидетельстве: «[ТЗ]».':'Название в «этикетке» должно совпадать с наименованием в выписке: «[наименование]».'},
+  {id:'l5',d:'label',t:'Категория — слово в слово из файла «Категория — ОКВЭД»',h:'Не придумана и не сокращена клиентом',r:'Категорию нужно взять из файла «Категория — ОКВЭД». Для вашего основного кода [код] подойдёт «[категория]».'},
+  {id:'l6',d:'label',t:'Взят самый полный вариант, который влезает в 32 символа',h:'«Описание ОКВЭД» → «Полная категория» → «Сокращенная категория»',r:'Можно взять более полный вариант категории — он помещается в 32 символа: «[категория]».'},
+  {id:'l7',d:'label',t:'Категория — по основному коду ОКВЭД из выписки',h:'Неосновной код не запрещён, но оператор может отказать: предупредите клиента',r:'Категория «[категория]» относится к неосновному коду ОКВЭД. Отправить можно, но оператор может отказать. Надёжнее — «[категория по основному коду]». Как поступим?'},
+  {id:'l8',d:'label',t:'Латиница — транслит, а не перевод',h:'Сверьте с результатом iTRANSLIT: «klining», а не «cleaning»',r:'В латинской версии нужен транслит, а не перевод: «[правильный вариант]» вместо «[вариант клиента]». Удобно сделать в сервисе iTRANSLIT.'},
+  {id:'l9',d:'label',t:'Текст одинаковый в согласии и анкете — до символа',h:'Точки, двоеточия, пробелы, инициалы',r:'В согласии написано «[текст 1]», а в анкете — «[текст 2]». Текст должен совпадать до символа. Какой вариант оставляем?'},
+
+  {id:'c1',d:'consent',t:()=>BL()?'Шаблон «Согласие для '+(UL()?'юрлиц':'ИП')+'» (билайн/Интелерос)':'Шаблон согласия МТС',r:()=>'Согласие заполнено не на том шаблоне. Для номеров '+G()+' нужен шаблон '+(BL()?'«Согласие для '+(UL()?'юрлиц':'ИП')+'»':'согласия МТС')+' из инструкции.'},
+  {id:'c2',d:'consent',t:'Не осталось красных вставок и подсказок шаблона',h:'На чёрно-белом скане цвет не виден — ищите слова-заглушки',r:'В согласии остался текст из шаблона: «[фрагмент]» на стр. [N]. Замените его данными компании и распечатайте заново.'},
+  {id:'c3',d:'consent',t:()=>'«Сведения о регистрации права»: '+(TM()?'товарный знак':'наименование '+(UL()?'юрлица':'ИП')),r:()=>'В поле «Сведения о регистрации права» нужно вписать '+(TM()?'товарный знак':'наименование '+(UL()?'компании':'ИП'))+' — то же, что в «этикетке».'},
+  {id:'c4',d:'consent',t:()=>'Подчёркнуто только «'+(TM()?'товарный знак':'фирменное наименование')+'»',h:'Ничего не подчёркнуто или подчёркнуто оба — ошибка',r:()=>'В «этикетке» вы используете '+(TM()?'товарный знак':'название компании')+', поэтому в согласии нужно подчеркнуть только «'+(TM()?'товарный знак':'фирменное наименование')+'».'},
+  {id:'c5',d:'consent',t:()=>'Пустое поле: '+(TM()?'товарный знак':'наименование')+', как в «Сведениях о регистрации права»',r:()=>'В согласии не заполнено поле, куда вписывают '+(TM()?'товарный знак':'наименование')+'. Впишите то же, что в «Сведениях о регистрации права».'},
+  {id:'c6',d:'consent',t:'Таблица с текстом «этикетки» заполнена',h:'Кириллица и латиница; для латинского ТЗ — прочерк в кириллице',r:'В согласии не заполнена таблица с текстом «этикетки»: впишите текст на кириллице и на латинице.'},
+  {id:'c7',d:'consent',w:BL,t:()=>'Таблица номеров: все номера '+G()+' из личного кабинета — и только они',h:()=>'ЛК → «Оплата и документы» → «Номера»'+(st.op==='bee'?'. Городские номера билайн не нужны':''),r:()=>'В согласии не хватает номеров [номера] / номер [номер] не относится к '+G()+'. В одном комплекте — все номера и только одного оператора.'},
+  {id:'c8',d:'consent',w:BL,t:'Номера в формате 79000000000',h:'11 цифр, с семёрки, без плюса, скобок, тире и пробелов',r:'Номера нужно записать в формате 79000000000 — с семёрки, без плюса, скобок, тире и пробелов.'},
+  {id:'c9',d:'consent',t:'Подпись стоит',r:'На согласии нет подписи. Подпишите распечатку и пришлите новый скан.'},
+  {id:'c10',d:'consent',w:()=>st.seal==='yes',t:'Печать стоит',r:'На согласии нет печати организации. Поставьте её и пришлите новый скан.'},
+  {id:'c11',d:'consent',w:()=>BL()&&!UL(),t:'Стр. 3: согласие на обработку персональных данных заполнено и подписано',r:'На третьей странице согласия нужно заполнить и подписать согласие на обработку персональных данных.'},
+  {id:'c12',d:'consent',t:'Если текстов «этикетки» несколько — на каждый своё согласие',h:'В каждом согласии только те номера, к которым относится его текст',r:'Для разных текстов «этикетки» нужны отдельные согласия: в каждом — свой текст и только те номера, к которым он относится.'},
+  {id:'c13',d:'consent',t:'Скан читается: все страницы, края не обрезаны',h:'Поля заполнены на компьютере, от руки — только подпись',r:'Скан согласия плохо читается или в нём не хватает страниц. Пришлите, пожалуйста, чёткий скан всех страниц.'},
+
+  {id:'f1',d:'form',w:BL,t:'Лист 2: те же номера, что в согласии',h:'Если согласий несколько — номера из всех вместе',r:'Номера в анкете не совпадают с номерами в согласии: [номера]. Должен быть один и тот же список.'},
+  {id:'m1',d:'form',w:()=>!BL(),t:'Все номера МТС из личного кабинета — и только они',h:'ЛК → «Оплата и документы» → «Номера»',r:'В анкете не хватает номеров [номера] / номер [номер] не относится к МТС. Нужны все номера МТС и только они.'},
+  {id:'f2',d:'form',t:()=>(BL()?'Лист 2: н':'Н')+'омера в формате 79000000000',h:'11 цифр, с семёрки, без плюса, скобок, тире и пробелов',r:'В анкете номера нужно записать в формате 79000000000 — с семёрки, без плюса, скобок, тире и пробелов.'},
+  {id:'f3',d:'form',t:()=>(BL()?'Лист 2: у':'У')+' каждого номера текст на кириллице и латинице, как в согласии',r:'В анкете не у всех номеров указан текст «этикетки»: [номера]. Текст должен быть тот же, что в согласии.'},
+  {id:'m2',d:'form',w:()=>!BL(),t:()=>'Полное наименование '+(UL()?'юрлица':'ИП')+' — буква в букву как в выписке',h:()=>UL()?'Не «ООО Чистим», а «Общество с ограниченной ответственностью «Чистим»»':'ФИО предпринимателя полностью',r:'В анкете нужно полное наименование, как в выписке: «[наименование из выписки]».'},
+  {id:'m3',d:'form',w:()=>!BL(),t:()=>'ИНН совпадает с выпиской ('+(UL()?'10':'12')+' цифр)',r:'ИНН в анкете не совпадает с выпиской. Проверьте, пожалуйста: должно быть [ИНН].'},
+  {id:'f4',d:'form',w:BL,t:'Лист 1 «Общая информация» заполнили мы',h:'Клиент его не трогает. Если трогал — перезаполните сами. В сообщение клиенту не попадает'},
+
+  {id:'v1',d:'verify',t:()=>'Выписка из '+(UL()?'ЕГРЮЛ':'ЕГРИП'),r:()=>'Пришлите, пожалуйста, выписку из '+(UL()?'ЕГРЮЛ':'ЕГРИП')+'.'},
+  {id:'v2',d:'verify',w:()=>st.seal==='yes',t:'Выписка заверена печатью',r:'Выписку нужно заверить печатью организации.'},
+  {id:'v3',d:'verify',w:()=>st.seal==='no'&&UL(),t:'Полная версия устава — все страницы',r:'Раз у компании нет печати, пришлите, пожалуйста, полную версию устава — все страницы.'},
+  {id:'v4',d:'verify',w:()=>st.seal==='no'&&!UL(),t:'Выписка подписана ИП, от руки пометка «работает без печати»',r:'Раз у вас нет печати, подпишите выписку из ЕГРИП и напишите на ней от руки, что ИП работает без печати.'},
+  {id:'v5',d:'verify',w:()=>!BL(),t:'ИНН прислан и совпадает с выпиской',r:'Пришлите, пожалуйста, ИНН.'},
+  {id:'v6',d:'verify',w:()=>!BL(),t:'ОГРН прислан и совпадает с выпиской',r:'Пришлите, пожалуйста, ОГРН.'},
+
+  {id:'t1',d:'tm',w:()=>st.tm==='own',t:'Свидетельство о регистрации товарного знака',r:'В «этикетке» есть товарный знак «[ТЗ]». Пришлите, пожалуйста, свидетельство о его регистрации.'},
+  {id:'t2',d:'tm',w:()=>st.tm==='own',t:'Правообладатель в свидетельстве — сам клиент',h:'То же юрлицо или ИП, что в выписке',r:'В свидетельстве правообладателем указаны не вы. Если знак принадлежит другой компании, нужен лицензионный договор, договор франшизы или согласие правообладателя.'},
+  {id:'t3',d:'tm',w:()=>st.tm==='lic',t:'Лицензионный договор, договор франшизы или согласие правообладателя',h:'Договоры — если они не конфиденциальны',r:'Товарный знак «[ТЗ]» принадлежит другой компании. Пришлите, пожалуйста, лицензионный договор, договор франшизы или согласие правообладателя на его использование.'}
+];
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const vis=()=>C.filter(c=>!c.w||c.w());
+
+function renderPick(){
+  document.querySelectorAll('.seg').forEach(s=>{const k=s.dataset.k;s.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===st[k])))});
+  $('latrow').hidden=!TM();
+  $('opnote').textContent=OPS[st.op].note;
+}
+function renderList(){
+  const list=vis();
+  $('list').innerHTML=DOCS.map(([d,name,sub])=>{
+    const items=list.filter(c=>c.d===d);
+    if(!items.length)return '';
+    const ok=items.filter(c=>marks[c.id]==='ok').length,er=items.filter(c=>marks[c.id]==='err').length;
+    const cls=er?'cnt bad':(ok===items.length?'cnt done':'cnt');
+    const lab=er?'ошибок: '+er+' · '+(ok+er)+' из '+items.length:(ok+er)+' из '+items.length;
+    return '<section class="doc"><header><h2>'+name+'</h2><span class="'+cls+'">'+lab+'</span><p>'+sub+'</p></header><div>'+items.map(c=>{
+      const m=marks[c.id]||'';const h=v(c.h);
+      return '<div class="it '+m+'"><div><div class="t">'+esc(v(c.t))+'</div>'+(h?'<div class="h">'+esc(h)+'</div>':'')+'</div><div class="mk"><button class="o" data-id="'+c.id+'" data-m="ok" aria-pressed="'+(m==='ok')+'">Ок</button><button class="e" data-id="'+c.id+'" data-m="err" aria-pressed="'+(m==='err')+'">Ошибка</button></div></div>';
+    }).join('')+'</div></section>';
+  }).join('');
+}
+function renderAside(){
+  const list=vis(),n=list.length;
+  const ok=list.filter(c=>marks[c.id]==='ok').length,er=list.filter(c=>marks[c.id]==='err').length,done=ok+er;
+  $('nDone').textContent=done;$('nLeft').textContent=n-done;$('nErr').textContent=er;
+  $('bOk').style.width=(n?ok/n*100:0)+'%';$('bErr').style.width=(n?er/n*100:0)+'%';
+  const vd=$('verdict');
+  if(done<n){vd.className='verdict';vd.textContent=er?'Есть ошибки — проверьте оставшиеся пункты, чтобы отправить всё одним сообщением.':'Проверьте все пункты до конца.';}
+  else if(er){vd.className='verdict bad';vd.textContent='Проверка закончена. Отправьте клиенту сообщение ниже.';}
+  else{vd.className='verdict good';vd.textContent='Комплект готов. Отправляйте документы '+(st.op==='mts'?'МТС':'оператору '+G())+'.';}
+  $('mtxt').textContent='Проверено '+done+' из '+n+' · ошибок '+er;
+  const lines=[];
+  DOCS.forEach(([d])=>list.filter(c=>c.d===d&&marks[c.id]==='err'&&c.r).forEach(c=>{const r=v(c.r);if(!lines.includes(r))lines.push(r)}));
+  const t=lines.length?'Здравствуйте! Проверили документы на «этикетку» для номеров '+G()+'. Чтобы оператор не вернул заявку, нужно поправить:\n\n'+lines.map((l,i)=>(i+1)+'. '+l).join('\n')+'\n\nПришлите, пожалуйста, исправленные документы в этот чат. Как только всё будет в порядке, сразу отправим их оператору.':'';
+  $('text').value=t;
+  $('brk').textContent=t.includes('[')?'Перед отправкой замените текст в квадратных скобках конкретикой из документов клиента.':'';
+}
+function render(){renderPick();renderList();renderAside();}
+
+document.querySelector('.pick').addEventListener('click',e=>{
+  const b=e.target.closest('.seg button');if(!b)return;
+  st[b.closest('.seg').dataset.k]=b.dataset.v;render();
+});
+$('list').addEventListener('click',e=>{
+  const b=e.target.closest('.mk button');if(!b)return;
+  const id=b.dataset.id,m=b.dataset.m;
+  marks[id]=marks[id]===m?undefined:m;
+  renderList();renderAside();
+});
+$('reset').addEventListener('click',()=>{for(const k in marks)delete marks[k];renderList();renderAside();window.scrollTo({top:0});});
+$('copy').addEventListener('click',()=>{
+  const ta=$('text'),b=$('copy');if(!ta.value){b.textContent='Пока нечего копировать';setTimeout(()=>b.textContent='Скопировать',1500);return;}
+  const done=()=>{b.textContent='Скопировано';setTimeout(()=>b.textContent='Скопировать',1500)};
+  try{navigator.clipboard.writeText(ta.value).then(done,()=>{ta.select();b.textContent='Выделено — нажмите Ctrl+C'})}catch(err){ta.select();b.textContent='Выделено — нажмите Ctrl+C'}
+});
+render();
+}
+</script>
+</body>
+</html>
